@@ -21,7 +21,7 @@ node_compat = true
 [placement]
 mode = "smart"
 
-[vars]
-TOKEN_SECRET = "bloniea"
-REFRESH_TOKEN_SECRET = "SEELE"
-TEST = 123
+# [vars]
+# TOKEN_SECRET = "bloniea"
+# REFRESH_TOKEN_SECRET = "SEELE"
+# TEST = 123
