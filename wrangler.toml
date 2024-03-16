@@ -22,6 +22,5 @@ compatibility_date = "2023-12-01"
 mode = "smart"
 
 # [vars]
-# TOKEN_SECRET = "bloniea"
-# REFRESH_TOKEN_SECRET = "SEELE"
-# TEST = 123
+# TOKEN_SECRET = "bronya"
+# REFRESH_TOKEN_SECRET = "seele"
