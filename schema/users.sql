@@ -1,0 +1,12 @@
+DROP TABLE IF EXISTS Users;
+CREATE TABLE IF NOT EXISTS Users (
+    UserId INTEGER PRIMARY KEY AUTOINCREMENT,
+    Username VARCHAR(50) NOT NULL UNIQUE,
+    Email VARCHAR(100) NOT NULL UNIQUE,
+    Password VARCHAR(100) NOT NULL,
+    RoleId INTEGER,
+    CreatedAt TIMESTAMP,
+    UpdatedAt TIMESTAMP,
+    FOREIGN KEY (RoleId) REFERENCES Roles(RoleId)
+);
+INSERT INTO Users (Username,Email,Password,RoleId,CreatedAt,UpdatedAt) VALUES ('admin','123@qq.com','8d969eef6ecad3c29a3a629280e686cf0c3f5d5a86aff3ca12020c923adc6c92',1,'1710478326661','1710478326661'); 
