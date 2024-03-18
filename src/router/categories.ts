@@ -172,5 +172,9 @@ export const getCategory = async (c: Context) => {
   )
   if (category?.err) return errorStatusMessage(c, 500, category.err)
   if (!category) return errorStatusMessage(c, 404, "category")
-  return c.json({ success: 1, message: "Retrieval successful.", data: {} })
+  return c.json({
+    success: 1,
+    message: "Retrieval successful.",
+    data: category,
+  })
 }
