@@ -3,7 +3,7 @@ import { sha256 } from "hono/utils/crypto"
 
 /**
  * 获取为空的属性
- * @returns 返回属性名
+ * @returns 返回数组包含为空的属性名
  * @param str 对象
  */
 export const valuesEmpty = (str: { [key: string]: any }): Array<string> => {
@@ -47,13 +47,13 @@ export const errorStatusMessage = async (
   if (status === 415) {
     return c.json({
       success: 0,
-      message: "Unsupported data type or null.",
+      message: message ? message : "Unsupported data type or null.",
     })
   }
   if (status === 400) {
     return c.json({
       success: 0,
-      message: `Missing required parameters:${message}`,
+      message: `${message}`,
     })
   }
   if (status === 401) {
@@ -146,6 +146,7 @@ export const getPagesAndNumbers = (
 }
 
 /**
+ *  没有传值是undefined，需要设置成空值返回
  *  根据数据是否存在，获取数据或者返回空值。
  * @param str 包含的数据的具有键值对的对象
  * @returns 返回数据或者空值的对象
@@ -164,87 +165,25 @@ export const fetchIfExistsOrElse = async <T extends object>(
   return result as { [K in keyof T]: K }
 }
 
-type UpdatedD1Result<T> = D1Result<T> & {
-  err?: string
-}
-type UpdatedD1Response = D1Response & {
-  err?: string
-}
-type UpdatedFirst = any & {
-  err?: string
-}
-
-type d1Type = "first" | "run" | "all"
-/**
- *
- * @param c hono的上下文
- * @param type 执行方法
- * @param sql sql语句
- * @param bind sql语句的占位符参数
- */
-export function db(
-  c: Context,
-  type: "all",
-  sql: string,
-  ...bind: any[]
-): Promise<UpdatedD1Result<unknown>>
-
-export function db(
-  c: Context,
-  type: "first",
-  sql: string,
-  ...bind: any[]
-): Promise<UpdatedFirst>
-// 重载 2：type 参数为除了 "all" 之外的其他值，返回 D1Database
-export function db(
-  c: Context,
-  type: Exclude<d1Type, "all" | "first">,
-  sql: string,
-  ...bind: any[]
-): Promise<UpdatedD1Response>
-
-// 实现：根据参数的不同调用相应的实现
-export async function db(
-  c: Context,
-  type: d1Type,
-  sql: string,
-  ...bind: any[]
-): Promise<D1Result<unknown> | D1Response | any> {
-  try {
-    const result = await c.env.DB.prepare(sql)
-      .bind(...bind)
-      [type]()
-
-    if (type === "all") {
-      return result as UpdatedD1Result<unknown>
-    } else if (type === "first") {
-      return result as UpdatedFirst
-    } else {
-      return result as UpdatedD1Response
-    }
-  } catch (error) {
-    console.log(error)
-    if (error instanceof Error) {
-      return { err: "sql operation failed." + error.toString() }
-    } else {
-      return { err: "sql operation failed." + error }
-    }
-  }
-}
 interface UserEmailPassword {
   Username?: string
   Email?: string
   Password?: string
   [key: string]: any
 }
+/**
+ * 检测用户注册的用户名、邮箱和密码是否符合规范
+ * @param obj 参数对象
+ * @returns 返回不符合规范的字段
+ */
 export const verifyUserEmailPassword = async (
   obj: UserEmailPassword
 ): Promise<string | null> => {
   const usernameRegex = /^[a-zA-Z]{3,10}$/
-  const passwordRegex = /^(?=.*[a-zA-Z])(?=.*\d|\W)(?!.*\s).{6,18}$/
+  const passwordRegex = /^[^\s]{6,18}$/
   const emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/
   const result: string[] = []
-  console.log(obj.Username)
+
   if (obj.Username && !usernameRegex.test(obj.Username)) {
     result.push("Username")
   }
@@ -260,20 +199,31 @@ export const verifyUserEmailPassword = async (
   console.log(result)
   return null
 }
-
+/**
+ * 根据权限字符串分割成数组，然后能让sql批量插入到表的成字符串
+ * @param Permissions 包含权限的字符串
+ * @param RoleId 角色id
+ * @returns 返回字符串
+ * 例：Permissions：‘1,2,3’、RoleId：1 => 返回：‘(1, 1)、(1, 2)、(1, 3)’
+ */
 export const setPermissions = (
   Permissions: string,
   RoleId: number | string
 ): string | null => {
   if (!Permissions) return null
   const permissions = Permissions.split(",")
-  // const seat: string[] = []
   const result: string[] = []
   permissions.forEach(async (item) => {
-    // seat.push(`(?,?)`)
     result.push(`('${RoleId}', '${item}')`)
   })
   return result.join(",")
-  // (?,?)
-  // (id,id2)
+}
+/**
+ * 根据传入字符串判断是否为数字
+ * @param str 可能为数字字符串
+ * @returns 返回布尔值
+ */
+export const isNumber = (str: string): boolean => {
+  if (isNaN(parseInt(str))) return false
+  else return true
 }

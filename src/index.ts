@@ -1,4 +1,11 @@
-import app from "./router"
+import { serve } from "@hono/node-server"
+import app from "./router/route"
+import dotenv from "dotenv"
+dotenv.config()
+const port = process.env.PORT !== undefined ? parseInt(process.env.PORT) : 3000
 
-export default app
-// 这个正则表达式要求密码长度在 6 到 18 个字符之间，并且至少包含一个字母和一个数字，或者至少包含一个字母和一个符号，或者至少包含一个数字和一个符号。
+serve({
+  fetch: app.fetch,
+  port,
+})
+console.log(`Server is running on http:localhost:${port}`)

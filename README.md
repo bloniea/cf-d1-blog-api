@@ -1,10 +1,8 @@
-# 使用教程
-
-```shell
+```
 npm install
 npm run dev
 ```
 
-```shell
-npm run deploy
+```
+open http://localhost:3000
 ```

@@ -1,7 +1,8 @@
 import { Context, MiddlewareHandler } from "hono"
-import { db, errorStatusMessage } from "./utils"
+import { errorStatusMessage } from "./utils"
 import { verify } from "./jwt"
 import { PERMISSION, ROLE, ROLE_PERMISSION } from "../config"
+import { sqlDb } from "../db/client"
 export const Authorization: MiddlewareHandler = async (
   c: Context,
   next: () => any
@@ -31,11 +32,43 @@ export const Authorization: MiddlewareHandler = async (
       "The header is missing Authorization or has an incorrect format."
     )
   }
+
   const authToken = auth.replace("Bearer ", "")
+
   let tokenStatus: any
   try {
     // 解析token
-    tokenStatus = await verify(authToken, c.env.TOKEN_SECRET)
+    tokenStatus = await verify(authToken, process.env.TOKEN_SECRET || "")
+    // 判断是否超级管理员
+    const client = await sqlDb()
+    const isSuperAdmin = await client.execute(
+      `SELECT * FROM ${ROLE} WHERE Roleid=? AND SuperAdmin=?`,
+      "first",
+      [tokenStatus.payload.RoleId, 1]
+    )
+
+    if (isSuperAdmin && isSuperAdmin.list) {
+      return await next()
+    }
+    // 查找当前访问所需权限的id
+    const permission = await client.execute(
+      `SELECT * FROM ${PERMISSION} WHERE PermissionName=?`,
+      "first",
+      [`${pathName}_${method}`]
+    )
+    if (!permission || !permission.list) {
+      return await next()
+    }
+    // 查找当前用户所属角色有没有权限
+    const userPremission = await client.execute(
+      `SELECT * FROM ${ROLE_PERMISSION} WHERE PermissionId=? and RoleId=?`,
+      "first",
+      [permission.list.PermissionId, tokenStatus.payload.RoleId]
+    )
+    if (!userPremission || !userPremission.list) {
+      return errorStatusMessage(c, 401, "没有权限")
+    }
+    await next()
   } catch (e) {
     console.log(e)
     return errorStatusMessage(
@@ -45,33 +78,7 @@ export const Authorization: MiddlewareHandler = async (
       "Token invalid"
     )
   }
-  // 判断是否超级管理员
-  const isSuperAdmin = await db(
-    c,
-    "first",
-    `SELECT * FROM ${ROLE} WHERE ROLEid=?`,
-    tokenStatus.payload.RoleId
-  )
-  if (isSuperAdmin.err) return errorStatusMessage(c, 500, isSuperAdmin.err)
-  if (isSuperAdmin.SuperAdmin) return await next()
-  // 查找当前访问所需权限的id
-  const permission = await db(
-    c,
-    "first",
-    `SELECT * FROM ${PERMISSION} WHERE PermissionName=?`,
-    `${pathName}_${method}`
-  )
-  if (!permission) return await next()
-  // 查找当前用户所属角色有没有权限
-  const userPremission = await db(
-    c,
-    "first",
-    `SELECT * FROM ${ROLE_PERMISSION} WHERE PermissionId=? and RoleId=?`,
-    (permission as any).PermissionId,
-    tokenStatus.payload.RoleId
-  )
-  if (!userPremission) return errorStatusMessage(c, 401, "没有权限")
-  await next()
+
   //   调试用
   c.req.matchedRoutes.forEach(({ handler, method, path }, i) => {
     const name =
