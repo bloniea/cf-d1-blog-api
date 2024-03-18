@@ -1,5 +1,6 @@
 import { serve } from "@hono/node-server"
-import app from "./router/route"
+import app from "./router/route.js"
+// import * as dotenv from "dotenv"
 import dotenv from "dotenv"
 dotenv.config()
 const port = process.env.PORT !== undefined ? parseInt(process.env.PORT) : 3000

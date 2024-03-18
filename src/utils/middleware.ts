@@ -1,8 +1,8 @@
 import { Context, MiddlewareHandler } from "hono"
-import { errorStatusMessage } from "./utils"
-import { verify } from "./jwt"
-import { PERMISSION, ROLE, ROLE_PERMISSION } from "../config"
-import { sqlDb } from "../db/client"
+import { errorStatusMessage } from "./utils.js"
+import { verify } from "./jwt.js"
+import { PERMISSION, ROLE, ROLE_PERMISSION } from "../config.js"
+import { sqlDb } from "../db/client.js"
 export const Authorization: MiddlewareHandler = async (
   c: Context,
   next: () => any
@@ -18,8 +18,7 @@ export const Authorization: MiddlewareHandler = async (
   const pathName = path.split("/")[0]
   if (
     !(method === "POST" || method === "PATCH" || method === "DELETE") ||
-    pathName === "login" ||
-    pathName === "refreshToken"
+    pathName === "login"
   ) {
     return await next()
   }

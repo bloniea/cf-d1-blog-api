@@ -5,8 +5,8 @@ import {
   getUpdateedData,
   isNumber,
   valuesEmpty,
-} from "../utils/utils"
-import { sqlDb } from "../db/client"
+} from "../utils/utils.js"
+import { sqlDb } from "../db/client.js"
 
 const CATEGORY = "Categories"
 export const getCategories = async (c: Context) => {

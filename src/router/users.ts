@@ -5,9 +5,9 @@ import {
   isNumber,
   valuesEmpty,
   verifyUserEmailPassword,
-} from "../utils/utils"
+} from "../utils/utils.js"
 import { sha256 } from "hono/utils/crypto"
-import { sqlDb } from "../db/client"
+import { sqlDb } from "../db/client.js"
 
 const USERS = "Users"
 const ROLES = "Roles"

@@ -4,12 +4,11 @@ import {
   getUpdateedData,
   valuesEmpty,
   verifyUserEmailPassword,
-} from "../utils/utils"
-import { USER } from "../config"
+} from "../utils/utils.js"
+import { USER } from "../config.js"
 import { sha256 } from "hono/utils/crypto"
-import { setToken, verify } from "../utils/jwt"
-import { env } from "hono/adapter"
-import { sqlDb } from "../db/client"
+import { setToken, verify } from "../utils/jwt.js"
+import { sqlDb } from "../db/client.js"
 
 export const login = async (c: Context) => {
   let Username: string, Password: string, Email: string

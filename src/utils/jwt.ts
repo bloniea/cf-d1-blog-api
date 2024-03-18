@@ -1,4 +1,3 @@
-import { Context } from "hono"
 import { Jwt } from "hono/utils/jwt"
 
 export const setToken = async (

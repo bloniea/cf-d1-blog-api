@@ -7,10 +7,9 @@ import {
   isNumber,
   setPermissions,
   valuesEmpty,
-} from "../utils/utils"
-import { ROLE_PERMISSION } from "../config"
-import { sha256 } from "hono/utils/crypto"
-import { sqlDb } from "../db/client"
+} from "../utils/utils.js"
+import { ROLE_PERMISSION } from "../config.js"
+import { sqlDb } from "../db/client.js"
 
 const ROLES = "Roles"
 const USERS = "Users"
