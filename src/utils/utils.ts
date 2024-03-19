@@ -196,7 +196,6 @@ export const verifyUserEmailPassword = async (
   if (result.length) {
     return result.join("、")
   }
-  console.log(result)
   return null
 }
 /**

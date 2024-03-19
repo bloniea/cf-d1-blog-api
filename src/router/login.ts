@@ -104,7 +104,6 @@ export const retPasword = async (c: Context) => {
   const client = await sqlDb()
   try {
     const EmptyDayta = valuesEmpty({ Password, NewPassword, ConfirmPassword })
-    console.log(EmptyDayta)
     if (EmptyDayta.length)
       return errorStatusMessage(
         c,

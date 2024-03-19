@@ -29,18 +29,22 @@ import {
 } from "./users.js"
 import { Authorization } from "../utils/middleware.js"
 import { login, refreshToken, retPasword } from "./login.js"
-
+import fs from "fs"
 type Variables = {
   message: string
 }
-
 const app = new Hono<{ Variables: Variables }>()
-
 app.get("/", async (c: Context) => {
-  return c.json({ message: "主页" })
+  return c.json({ message: "走错了" })
 })
-const blogApi = app.basePath("/api/v1/blog/")
+app.get("/favicon.ico", async (c: Context) => {
+  const favicon = fs.readFileSync("./favicon.ico")
+  c.header("Content-Type", "image/x-icon")
+  return c.body(favicon)
+})
+const blogApi = app.basePath("/v1/")
 blogApi.use("/*", Authorization)
+
 blogApi
   .post("/login", login)
   .post("/refreshToken", refreshToken)

@@ -1,12 +1,11 @@
 import {
+  type Client,
+  type ResultSet,
+  type TransactionMode,
+  type Transaction,
+  type Row,
   createClient,
-  Client,
-  ResultSet,
-  TransactionMode,
-  Transaction,
-  Row,
 } from "@libsql/client"
-
 // 错误接口
 interface InterfaceError {
   err: string
