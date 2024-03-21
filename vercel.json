@@ -2,5 +2,8 @@
   "version": 2,
   "builds": [{ "src": "index.ts", "use": "@vercel/node" }],
 
-  "routes": [{ "src": "/(.*)", "dest": "/" }]
+  "routes": [
+    { "src": "/(.*)", "dest": "/" },
+    { "src": "/v2/:match*", "dest": "https://tursor-api.vercel.app/$1" }
+  ]
 }
