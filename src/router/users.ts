@@ -8,13 +8,21 @@ import {
 } from "../utils/utils.js"
 import { sha256 } from "hono/utils/crypto"
 import { pool, roles, users } from "../db/psql.js"
+import { verify } from "../utils/jwt.js"
 
 export const getUsers = async (c: Context) => {
   try {
-    const usersData =
-      await pool.query(`SELECT ${users}.user_id, ${users}.username, ${users}.email, ${users}.role_id, ${users}.created_at, ${users}.updated_at, ${roles}.Name as RoleName 
+    const auth = c.req.header("Authorization") as string
+    const authToken = auth.replace("Bearer ", "")
+    const userInfo = await verify(authToken, process.env.TOKEN_SECRET || "")
+    let keyword = c.req.query("keyword")
+    keyword = keyword ? `%${keyword}%` : "%"
+    const usersData = await pool.query(
+      `SELECT ${users}.user_id, ${users}.username, ${users}.email, ${users}.role_id, ${users}.created_at, ${users}.updated_at, ${roles}.Name as RoleName 
     FROM ${users} 
-    JOIN ${roles} ON ${users}.user_id = ${roles}.role_id`)
+    JOIN ${roles} ON ${users}.role_id = ${roles}.role_id AND ${users}.user_id != $1 AND super_admin != $2 AND username LIKE $3`,
+      [userInfo.payload.user_id, 1, keyword]
+    )
 
     return c.json({
       success: 1,
@@ -135,6 +143,7 @@ export const updateUser = async (c: Context) => {
       password,
       role_id,
     })
+    console.log(updateedData)
     // 数据检测
     const validation = await verifyUserEmailPassword(updateedData.values)
     if (validation !== null) return errorStatusMessage(c, 422, validation)
@@ -180,9 +189,10 @@ export const deleteUser = async (c: Context) => {
     const { user_id } = c.req.param()
     if (!isNumber(user_id))
       return errorStatusMessage(c, 422, "user_id is not a valid number")
-    const del = await pool.query(`DELETE FROM ${users} WHERE user_id = $1`, [
-      user_id,
-    ])
+    const del = await pool.query(
+      `DELETE FROM ${users} WHERE user_id = $1 AND super_admin != $2`,
+      [user_id, "1"]
+    )
 
     if (!del || !del.rowCount) return errorStatusMessage(c, 404, "User")
     return c.json({ success: 1, message: "Deletion successful." })

@@ -71,16 +71,16 @@ export const refreshToken = async (c: Context) => {
       const tokenSecret = process.env.TOKEN_SECRET || "Bronya"
       refreshToken = refreshToken.replace("Bearer ", "")
       const getRefreshToken = await verify(refreshToken, refreshTokenSecret)
-      const token = await setToken(getRefreshToken, tokenSecret)
+      const token = await setToken(getRefreshToken.payload, tokenSecret)
       const newRefreshToken = await setToken(
-        getRefreshToken,
+        getRefreshToken.payload,
         refreshTokenSecret,
         604800
       )
       return c.json({
         success: 1,
         message: "refreshToken",
-        data: { token, refreshToken: newRefreshToken },
+        data: { token, refreshToken: newRefreshToken, refresh: true },
       })
     } catch (error) {
       console.error(error)

@@ -7,22 +7,13 @@ export const permissions = "permissions",
   articles = "articles",
   categories = "categories"
 // 创建一个连接池实例
+
 export const pool = new Pool({
   connectionString: process.env.POSTGRES_URL,
   max: 20,
   idleTimeoutMillis: 30000, // 连接在空闲状态下保持打开的时间（毫秒）
   connectionTimeoutMillis: 2000, // 获取新连接的超时时间（毫秒）
 })
-// export const pool = new Pool({
-//   user: "postgres",
-//   host: "localhost",
-//   database: "blog",
-//   password: "123456",
-//   port: 5431,
-//   max: 20,
-//   idleTimeoutMillis: 30000, // 连接在空闲状态下保持打开的时间（毫秒）
-//   connectionTimeoutMillis: 2000, // 获取新连接的超时时间（毫秒）
-// })
 
 // 关闭连接池（在应用程序退出时执行）
 process.on("SIGINT", () => {

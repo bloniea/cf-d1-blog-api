@@ -89,35 +89,50 @@ interface UpdateedData {
  * 获取更新的字段和值
  * @param str 参数对象键值对
  * @returns 返回更新的字段和值
+ * 传入
+ * {
+  username: 'FFDSFfds',
+  email: 'FASF@qq.com',
+  password: undefined,
+  role_id: 2
+ }
+ 返回
+{
+  fields: [ 'username = $1', 'email = $2', 'role_id = $3' ],
+  values: { username: 'FFDSFfds', email: 'FASF@qq.com', role_id: 2 },
+  sqlAnd: 'username = $1 and email = $2 and role_id = $3',
+  sqlOr: "username = 'FFDSFfds' or email = 'FASF@qq.com'"
+}
  */
 export const getUpdateedData = async (str: {
   [key: string]: any
 }): Promise<UpdateedData> => {
   const fields: Array<string> = [],
     values: any = {},
-    equality: Array<string> = [],
+    sqlAnd: Array<string> = [],
     sqlOr: Array<string> = []
   let i = 1
+  console.log(str)
   for (const item in str) {
     if (str[item]) {
       fields.push(`${item} = $${i}`)
-      equality.push(`${item} = $${i}`)
+      sqlAnd.push(`${item} = $${i}`)
       if (item === "password") {
         values[item] = await sha256(str[item])
       } else {
         values[item] = str[item]
       }
+      i++
     }
 
     if ((str[item] && item === "username") || (str[item] && item === "email")) {
       sqlOr.push(`${item} = '${str[item]}'`)
     }
-    i++
   }
   return {
     fields: fields,
     values,
-    sqlAnd: equality.join(" and "),
+    sqlAnd: sqlAnd.join(" and "),
     sqlOr: sqlOr.join(" or "),
   }
 }
@@ -181,7 +196,7 @@ export const verifyUserEmailPassword = async (
   obj: UserEmailPassword
 ): Promise<string | null> => {
   const usernameRegex = /^[a-zA-Z]{3,10}$/
-  const passwordRegex = /^[^\s]{6,18}$/
+  // const passwordRegex = /^[^\s]{6,18}$/
   const emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/
   const result: string[] = []
 
@@ -226,4 +241,45 @@ export const setPermissions = (
 export const isNumber = (str: string): boolean => {
   if (isNaN(parseInt(str))) return false
   else return true
+}
+/**
+ * 根据传入数组改变结构
+ * @param permissions 数组数据
+ * @returns 返回改变后的数据
+ */
+type Permissions = {
+  permission_id: number
+  name: string
+  level: number
+  parent_id: number
+  description: string
+  children: Array<Permissions>
+}
+export const permissionsFilter = (
+  permissions: Array<Permissions>
+): Array<Permissions> => {
+  // 构建一个映射，以 id 作为键，方便后续查找
+  const idMap: { [key: string]: Permissions } = {}
+  permissions.forEach((item) => {
+    idMap[item.permission_id] = item
+  })
+  const result: Array<Permissions> = []
+  // 遍历数组，将具有 parent_id 的对象添加到对应的 id 下
+  permissions.forEach((item) => {
+    // parent_id存在并且permission_id为parent_id的数据也存在
+    if (item.parent_id && idMap[item.parent_id]) {
+      // 如果存在 parent_id 并且父节点存在，则将当前节点添加到父节点的 children 数组中
+      if (!idMap[item.parent_id].children) {
+        idMap[item.parent_id].children = []
+      }
+
+      idMap[item.parent_id].children.push(item)
+    } else {
+      result.push(item)
+    }
+  })
+
+  // 现在 data 数组中的每个对象应该都有了正确的 children 字段
+  console.log(permissions)
+  return result
 }

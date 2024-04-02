@@ -3,11 +3,11 @@
   "version": "1.0.0",
   "license": "MIT",
   "scripts": {
-    "dev": "CHOKIDAR_USEPOLLING=true tsx watch src/index.ts",
-    "start": "npx tsx watch src/index.ts",
+    "dev": "CHOKIDAR_USEPOLLING=true tsx watch index.ts",
+    "start": "npx tsx watch index.ts",
     "build": "tsc"
   },
-  "main": "index.js",
+  "main": "index.ts",
   "type": "module",
   "dependencies": {
     "@hono/node-server": "^1.8.2",
@@ -16,6 +16,7 @@
     "pg": "^8.11.3"
   },
   "devDependencies": {
+    "@types/crypto-js": "^4.2.2",
     "@types/node": "^20.11.17",
     "@types/pg": "^8.11.4",
     "tsc": "^2.0.4",

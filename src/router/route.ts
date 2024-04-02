@@ -30,6 +30,9 @@ import {
 import { Authorization } from "../utils/middleware.js"
 import { login, refreshToken, retPasword } from "./login.js"
 import fs from "fs"
+import { getPermissions } from "./permissions.js"
+import { getInfos } from "./info.js"
+import { resetPwd } from "./resetPwd.js"
 type Variables = {
   message: string
 }
@@ -72,4 +75,8 @@ blogApi
   .post("/user", createUser)
   .delete("/user/:user_id", deleteUser)
   .patch("/user/:user_id", updateUser)
+
+  .get("/permissions", getPermissions)
+  .get("/info", getInfos)
+  .post("/resetPwd", resetPwd)
 export default app

@@ -14,18 +14,22 @@ import { articles, categories, pool } from "../db/psql.js"
 
 export const getArticles = async (c: Context) => {
   try {
-    let { Pages, PageNumber } = c.req.query()
-    const pagesAndPageNumber = getPagesAndNumbers(Pages, PageNumber)
+    let { pages, pageNumber, keyword } = c.req.query()
+    const pagesAndPageNumber = getPagesAndNumbers(pages, pageNumber)
     // 获取articles的总数
+    keyword = keyword ? `%${keyword}%` : "%"
     const articlesTotal = await pool.query(
       `SELECT COUNT(*) AS total FROM ${articles}`
     )
     // 获取文章}
     const data = await pool.query(
-      `SELECT ${articles}.*, ${categories}.name as categoryTitle,${categories}.img_url as categoryImgUrl  FROM ${articles} JOIN ${categories} ON ${articles}.category_id = ${categories}.category_id ORDER BY created_at DESC LIMIT $1 OFFSET $2;`,
+      `SELECT ${articles}.*, ${categories}.name as categoryTitle,${categories}.img_url as categoryImgUrl  FROM ${articles} JOIN ${categories} ON ${articles}.category_id = ${categories}.category_id 
+      WHERE title LIKE $3
+      ORDER BY created_at DESC LIMIT $1 OFFSET $2;`,
       [
-        pagesAndPageNumber.pages,
-        (pagesAndPageNumber.pageNumbers - 1) * pagesAndPageNumber.pages,
+        String(pagesAndPageNumber.pages),
+        String((pagesAndPageNumber.pageNumbers - 1) * pagesAndPageNumber.pages),
+        String(keyword),
       ]
     )
 

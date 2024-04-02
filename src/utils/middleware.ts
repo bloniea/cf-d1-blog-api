@@ -1,7 +1,13 @@
 import { Context, MiddlewareHandler } from "hono"
 import { errorStatusMessage } from "./utils.js"
 import { verify } from "./jwt.js"
-import { permissions, pool, role_permissions, roles } from "../db/psql.js"
+import {
+  permissions,
+  pool,
+  role_permissions,
+  roles,
+  users,
+} from "../db/psql.js"
 export const Authorization: MiddlewareHandler = async (
   c: Context,
   next: () => any
@@ -16,8 +22,9 @@ export const Authorization: MiddlewareHandler = async (
   //  /api/role --> role
   const pathName = path.split("/")[0]
   if (
-    !(method === "POST" || method === "PATCH" || method === "DELETE") ||
-    pathName === "login"
+    // !(method === "POST" || method === "PATCH" || method === "DELETE") ||
+    pathName === "login" ||
+    pathName === "refreshToken"
   ) {
     return await next()
   }
@@ -35,19 +42,26 @@ export const Authorization: MiddlewareHandler = async (
 
   let tokenStatus: any
   try {
-    // 解析token
-    tokenStatus = await verify(authToken, process.env.TOKEN_SECRET || "")
+    tokenStatus = await verify(authToken, process.env.TOKEN_SECRET || "Bronya")
+  } catch (e) {
+    return errorStatusMessage(
+      c,
+      401,
+      "Token expired or invalid.",
+      "Token invalid"
+    )
+  }
+  // 解析token
+
+  try {
     // 判断是否超级管理员
     const isSuperAdmin = await pool.query(
-      `SELECT * FROM ${roles} WHERE role_id=$1 AND super_admin=$2`,
-      [tokenStatus.payload.role_id, 1]
+      `SELECT * FROM ${users} WHERE user_id = $1 AND super_admin = $2`,
+      [tokenStatus.payload.user_id, 1]
     )
-    // client.execute(
-    //   `SELECT * FROM ${roles} WHERE Roleid=? AND SuperAdmin=?`,
-    //   "first",
-    //   [tokenStatus.payload.RoleId, 1]
-    // )
+
     if (isSuperAdmin && isSuperAdmin.rowCount) {
+      console.log("超级用户")
       return await next()
     }
     // 查找当前访问所需权限的id
@@ -55,11 +69,7 @@ export const Authorization: MiddlewareHandler = async (
       `SELECT * FROM ${permissions} WHERE name=$1`,
       [`${pathName}_${method}`]
     )
-    // await client.execute(
-    //   `SELECT * FROM ${PERMISSION} WHERE PermissionName=?`,
-    //   "first",
-    //   [`${pathName}_${method}`]
-    // )
+    // 说明此访问无需权限
     if (!permission || !permission.rowCount) {
       return await next()
     }
@@ -68,22 +78,16 @@ export const Authorization: MiddlewareHandler = async (
       `SELECT * FROM ${role_permissions} WHERE permission_id=$1 and role_id=$2`,
       [permission.rows[0].PermissionId, tokenStatus.payload.role_id]
     )
-    // client.execute(
-    //   `SELECT * FROM ${ROLE_PERMISSION} WHERE PermissionId=? and RoleId=?`,
-    //   "first",
-    //   [permission.list.PermissionId, tokenStatus.payload.RoleId]
-    // )
     if (!userPremission || !userPremission.rowCount) {
-      return errorStatusMessage(c, 401, "没有权限")
+      return errorStatusMessage(c, 401, "没有权限", { auth: 0 })
     }
     await next()
   } catch (e) {
-    console.log(e)
+    console.error(e)
     return errorStatusMessage(
       c,
-      401,
-      "Token expired or invalid.",
-      "Token invalid"
+      500,
+      e instanceof Error ? e.message : String(e)
     )
   }
 

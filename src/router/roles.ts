@@ -8,13 +8,21 @@ import {
   setPermissions,
   valuesEmpty,
 } from "../utils/utils.js"
-import { pool, role_permissions, roles, users } from "../db/psql.js"
+import {
+  permissions,
+  pool,
+  role_permissions,
+  roles,
+  users,
+} from "../db/psql.js"
 
 export const getRoles = async (c: Context) => {
   try {
+    let keyword = c.req.query("keyword")
+    keyword = keyword ? `%${keyword}%` : "%"
     const rolesD = await pool.query(
-      `SELECT * FROM ${roles} WHERE super_admin <> $1`,
-      [1]
+      `SELECT * FROM ${roles} WHERE  name LIKE $1`,
+      [keyword]
     )
     return c.json({
       success: 1,
@@ -36,12 +44,15 @@ export const getRole = async (c: Context) => {
   console.log(role_id)
   if (!isNumber(role_id))
     return errorStatusMessage(c, 422, "role_id is not a valid number")
+
   try {
-    const role = await pool.query(
-      `SELECT * FROM ${roles} WHERE role_id= $1 AND super_admin <> $2`,
-      [role_id, "1"]
-    )
-    if (!role || !role.rowCount) return errorStatusMessage(c, 404, "Role")
+    const role = await pool.query(`SELECT * FROM ${roles} WHERE role_id= $1`, [
+      role_id,
+    ])
+    if (!role || !role.rowCount) {
+      return errorStatusMessage(c, 404, "Role")
+    }
+
     return c.json({
       success: 1,
       message: "Retrieval successful.",
@@ -64,7 +75,7 @@ export const createRole = async (c: Context) => {
   } catch (err) {
     return errorStatusMessage(c, 415)
   }
-
+  await pool.query("BEGIN")
   try {
     const emptyParame = valuesEmpty({ name })
     if (emptyParame.length) {
@@ -82,15 +93,19 @@ export const createRole = async (c: Context) => {
     if (ifExist && ifExist.rowCount)
       return errorStatusMessage(c, 409, "Role")
       //   处理没有传值，可为空的属性
-    ;({ description } = await fetchIfExistsOrElse({ description }))
+    ;({ description, permissions } = await fetchIfExistsOrElse({
+      description,
+      permissions,
+    }))
 
     const timeNow = String(Date.now())
     const insert = await pool.query(
-      `INSERT INTO ${roles} (name, description, created_at, updated_at) VALUES ($1,$2,$3,$4) RETURNING role_id`,
-      [name, description, timeNow, timeNow]
+      `INSERT INTO ${roles} (name, description,permissions, created_at, updated_at) VALUES ($1,$2,$3,$4,$5) RETURNING role_id`,
+      [name, description, permissions, timeNow, timeNow]
     )
 
     if (!insert || !insert.rowCount) {
+      await pool.query("ROLLBACK")
       throw new Error("Failed to create role")
     }
     const permissionsInsetData = setPermissions(
@@ -98,6 +113,7 @@ export const createRole = async (c: Context) => {
       insert.rows[0].role_id
     )
     if (permissionsInsetData === null) {
+      await pool.query("COMMIT")
       return c.json({
         success: 1,
         message: "New record created successfully.",
@@ -106,18 +122,20 @@ export const createRole = async (c: Context) => {
     }
 
     const permissionsInsert = await pool.query(
-      `INSERT INTO ${role_permissions} (role_id, PermissionId) VALUES ${permissionsInsetData}`
+      `INSERT INTO ${role_permissions} (role_id, permission_id) VALUES ${permissionsInsetData}`
     )
 
     if (!permissionsInsert || !permissionsInsert.rowCount) {
       throw new Error("Failed to create role")
     }
+    await pool.query("COMMIT")
     return c.json({
       success: 1,
       message: "创建用户",
       data: { role_id: insert.rows[0].role_id },
     })
   } catch (e) {
+    await pool.query("ROLLBACK")
     console.error(e)
     return errorStatusMessage(
       c,
@@ -141,13 +159,17 @@ export const updateRole = async (c: Context) => {
   try {
     // 判断修改的数据是否存在
     const isExist = await pool.query(
-      `SELECT * FROM ${roles} WHERE role_id = $1 and super_admin <> $2`,
-      [role_id, "1"]
+      `SELECT * FROM ${roles} WHERE role_id = $1 `,
+      [role_id]
     )
 
     if (!isExist || !isExist.rowCount) return errorStatusMessage(c, 404, "Role")
     // 判断前端传来的数据和数据库的数据是否相同
-    const updateedData = await getUpdateedData({ name, description })
+    const updateedData = await getUpdateedData({
+      name,
+      description,
+      permissions,
+    })
 
     const nowDate = Date.now()
     const updatedPermissions = setPermissions(permissions, role_id)
@@ -160,7 +182,7 @@ export const updateRole = async (c: Context) => {
 
       if (updatedPermissions !== null) {
         const insertPermission = await pool.query(
-          `INSERT INTO ${role_permissions} (role_id, PermissionId) VALUES ${updatedPermissions}`
+          `INSERT INTO ${role_permissions} (role_id, permission_id) VALUES ${updatedPermissions}`
         )
 
         if (!insertPermission || !insertPermission.rowCount) {
@@ -209,8 +231,8 @@ export const deleteRole = async (c: Context) => {
     return errorStatusMessage(c, 422, "role_id is not a valid number")
   try {
     const role = await pool.query(
-      ` SELECT * FROM ${roles} WHERE role_id = $1 AND super_admin <> $2`,
-      [role_id, "1"]
+      ` SELECT * FROM ${roles} WHERE role_id = $1 `,
+      [role_id]
     )
 
     if (!role || !role.rowCount) return errorStatusMessage(c, 404, "Role")
@@ -221,14 +243,25 @@ export const deleteRole = async (c: Context) => {
 
     if (usersD && usersD.rowCount)
       return errorStatusMessage(c, 409, "Users associated with roles")
+
+    await pool.query("BEGIN") // 开始事务
+
+    await pool.query(`DELETE FROM ${role_permissions} WHERE role_id = $1;`, [
+      role_id,
+    ])
     const result = await pool.query(
-      `DELETE FROM ${roles} WHERE role_id = $1 and super_admin <> $2`,
-      [role_id, "1"]
+      `DELETE FROM ${roles} WHERE role_id = $1 `,
+      [role_id]
     )
 
-    if (!result || !result.rowCount) return errorStatusMessage(c, 404, "Role")
+    if (!result || !result.rowCount) {
+      await pool.query("ROLLBACK")
+      return errorStatusMessage(c, 404, "Role")
+    }
+    await pool.query("COMMIT") // 提交事务
     return c.json({ success: 1, message: "Deletion successful." })
   } catch (e) {
+    await pool.query("ROLLBACK")
     console.error(e)
     return errorStatusMessage(
       c,

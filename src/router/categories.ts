@@ -11,22 +11,34 @@ import { pool } from "../db/psql.js"
 const CATEGORY = "Categories"
 export const getCategories = async (c: Context) => {
   try {
-    let { pages, pageNumber } = c.req.query()
+    let { pages, pageNumber, keyword } = c.req.query()
+    if (!pageNumber || !pages) {
+      const categoriesRes = await pool.query(
+        `SELECT * FROM ${CATEGORY} ORDER BY created_at DESC`
+      )
+      const total = await pool.query(
+        `SELECT COUNT(*) AS total FROM ${CATEGORY}`
+      )
+      return c.json({
+        success: 1,
+        message: "Retrieval successful.",
+        data: { result: categoriesRes.rows, ...total.rows[0] },
+      })
+    }
     const pagesAndPageNumber = getPagesAndNumbers(pages, pageNumber)
     //   获取分类
-
+    keyword = keyword ? `%${keyword}%` : "%"
     const categories = await pool.query(
-      `SELECT * FROM ${CATEGORY}  ORDER BY created_at DESC LIMIT $1 OFFSET $2`,
+      `SELECT * FROM ${CATEGORY} WHERE name LIKE $3 ORDER BY created_at DESC LIMIT $1 OFFSET $2`,
       [
-        pagesAndPageNumber.pages,
-        (pagesAndPageNumber.pageNumbers - 1) * pagesAndPageNumber.pages,
+        String(pagesAndPageNumber.pages),
+        String((pagesAndPageNumber.pageNumbers - 1) * pagesAndPageNumber.pages),
+        keyword,
       ]
     )
-
     //   获取分类总数
     const total = await pool.query(`SELECT COUNT(*) AS total FROM ${CATEGORY}`)
 
-    console.log(total)
     return c.json({
       success: 1,
       message: "Retrieval successful.",
