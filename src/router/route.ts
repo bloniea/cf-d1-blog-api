@@ -81,6 +81,9 @@ blogApi
   .post("/resetPwd", resetPwd)
 
 const openapi = app.basePath("/open/v1/")
+openapi.get("/", async (c: Context) => {
+  return c.json({ message: `走错了2` })
+})
 openapi
   .get("/articles", getArticles)
   .get("/article/:article_id", getArticle)

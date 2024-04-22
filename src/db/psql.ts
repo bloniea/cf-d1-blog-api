@@ -10,6 +10,8 @@ export const permissions = "permissions",
 
 export const pool = new Pool({
   connectionString: process.env.POSTGRES_URL,
+  // connectionString:
+  //   "default:Bsf0T5xVqYFI@ep-spring-bread-a402dds8-pooler.us-east-1.aws.neon.tech:5432/verceldb?sslmode=require",
   max: 20,
   idleTimeoutMillis: 30000, // 连接在空闲状态下保持打开的时间（毫秒）
   connectionTimeoutMillis: 2000, // 获取新连接的超时时间（毫秒）

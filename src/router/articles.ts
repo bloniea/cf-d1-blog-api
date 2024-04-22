@@ -219,10 +219,16 @@ export const getArticle = async (c: Context) => {
     return errorStatusMessage(c, 422, "article_id is not a valid number")
   try {
     // 获取文章详情
+    // const article = await pool.query(
+    //   `SELECT * FROM ${articles} WHERE article_id = $1`,
+    //   [article_id]
+    // )
     const article = await pool.query(
-      `SELECT * FROM ${articles} WHERE article_id = $1`,
+      `SELECT ${articles}.*, ${categories}.name as categoryTitle,${categories}.img_url as categoryImgUrl  FROM ${articles} JOIN ${categories} ON ${articles}.category_id = ${categories}.category_id 
+      WHERE article_id = $1`,
       [article_id]
     )
+
     // client.execute(`SELECT * FROM ${articles} WHERE article_id = ?`, "first", [
     //   article_id,
     // ])
