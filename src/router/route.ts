@@ -79,4 +79,12 @@ blogApi
   .get("/permissions", getPermissions)
   .get("/info", getInfos)
   .post("/resetPwd", resetPwd)
+
+const openapi = app.basePath("/open/v1/")
+openapi
+  .get("/articles", getArticles)
+  .get("/article/:article_id", getArticle)
+  .get("/categories", getCategories)
+  .get("/category/:category_id", getCategory)
+
 export default app
