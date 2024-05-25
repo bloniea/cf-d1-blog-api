@@ -14,6 +14,7 @@ export const pool = new Pool({
   idleTimeoutMillis: 30000, // 连接在空闲状态下保持打开的时间（毫秒）
   connectionTimeoutMillis: 2000, // 获取新连接的超时时间（毫秒）
 })
+
 // export const pool = new Pool({
 //   user: "postgres",
 //   database: "blog1",
