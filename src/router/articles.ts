@@ -18,6 +18,7 @@ export const getArticles = async (c: Context) => {
     let { pages, pageNumber, keyword } = c.req.query()
     const pagesAndPageNumber = getPagesAndNumbers(pages, pageNumber)
     // 获取articles的总数
+
     keyword = keyword ? `%${keyword}%` : "%"
     const articlesTotal = await pool.query(
       `SELECT COUNT(*) AS total FROM ${articles}`
