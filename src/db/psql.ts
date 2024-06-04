@@ -5,7 +5,10 @@ export const permissions = "permissions",
   role_permissions = "role_permissions",
   users = "users",
   articles = "articles",
-  categories = "categories"
+  categories = "categories",
+  images = "images",
+  images_category = "images_category",
+  image_users = "image_users"
 // 创建一个连接池实例
 
 export const pool = new Pool({

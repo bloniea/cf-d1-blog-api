@@ -27,12 +27,20 @@ import {
   getUsers,
   updateUser,
 } from "./users.js"
-import { Authorization } from "../utils/middleware.js"
+import { Authorization, AuthorizationImage } from "../utils/middleware.js"
 import { login, refreshToken, retPasword } from "./login.js"
 import fs from "fs"
 import { getPermissions } from "./permissions.js"
 import { getInfos } from "./info.js"
 import { resetPwd } from "./resetPwd.js"
+import {
+  getImages,
+  getImagesCategories,
+  login as imageLogin,
+  refresh,
+  reset,
+  uploadImage,
+} from "./images/images.js"
 type Variables = {
   message: string
 }
@@ -90,4 +98,17 @@ openapi
   .get("/categories", getCategories)
   .get("/category/:category_id", getCategory)
 
+const imagesApi = app.basePath("/image/v1/")
+imagesApi.use("/*", AuthorizationImage)
+imagesApi.get("/", async (c: Context) => {
+  return c.json({ message: `图床api` })
+})
+
+imagesApi
+  .get("/images", getImages)
+  .get("/categories", getImagesCategories)
+  .post("/login", imageLogin)
+  .post("/reset", reset)
+  .post("/refresh", refresh)
+  .post("/upload", uploadImage)
 export default app

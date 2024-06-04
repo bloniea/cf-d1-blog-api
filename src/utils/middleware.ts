@@ -105,3 +105,50 @@ export const Authorization: MiddlewareHandler = async (
   //   )
   // })
 }
+export const AuthorizationImage: MiddlewareHandler = async (
+  c: Context,
+  next: () => any
+) => {
+  c.header("Content-Type", "application/json; charset=UTF-8")
+  const method = c.req.method
+  // 去除路由前缀，访问/role接口时，路径开头就是role 了
+  let routePath: string[] | string = c.req.routePath.split("/")
+  routePath.pop() // 去除最后一个*号
+  routePath = routePath.join("/")
+  const path = c.req.path.replace(routePath + "/", "")
+  //  /api/role --> role
+  const pathName = path.split("/")[0]
+  if (
+    // !(method === "POST" || method === "PATCH" || method === "DELETE") ||
+    method === "GET" ||
+    pathName === "login" ||
+    pathName === "refresh"
+  ) {
+    return await next()
+  }
+
+  const auth = c.req.header("Authorization")
+  if (!auth || !auth.startsWith("Bearer ")) {
+    return errorStatusMessage(
+      c,
+      401,
+      "The header is missing Authorization or has an incorrect format.",
+      "Token invalid"
+    )
+  }
+
+  const authToken = auth.replace("Bearer ", "")
+
+  let tokenStatus: any
+  try {
+    tokenStatus = await verify(authToken, process.env.TOKEN_SECRET || "Bronya")
+  } catch (e) {
+    return errorStatusMessage(
+      c,
+      401,
+      "Token expired or invalid.",
+      "Token invalid"
+    )
+  }
+  await next()
+}

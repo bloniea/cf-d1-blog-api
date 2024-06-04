@@ -1,6 +1,7 @@
 import { Context } from "hono"
 import { sha256 } from "hono/utils/crypto"
-
+import { CombinedResponse } from "./types.js"
+import crypto from "crypto"
 /**
  * 获取为空的属性
  * @returns 返回数组包含为空的属性名
@@ -42,37 +43,57 @@ export const errorStatusMessage = async (
   status: StatusCode,
   message?: string,
   obj?: any
-): Promise<Response> => {
+): Promise<CombinedResponse> => {
   c.status(status)
   if (status === 415) {
     return c.json({
       success: 0,
       message: message ? message : "Unsupported data type or null.",
+      status: status,
     })
   }
   if (status === 400) {
     return c.json({
       success: 0,
       message: `${message}`,
+      status: status,
     })
   }
   if (status === 401) {
-    return c.json({ success: 0, message: `Unauthorized.${message}`, data: obj })
+    return c.json({
+      success: 0,
+      message: `Unauthorized.${message}`,
+      status: status,
+      data: obj,
+    })
   }
   if (status === 404) {
-    return c.json({ success: 0, message: `${message} Not Found.` })
+    return c.json({
+      success: 0,
+      message: `${message} Not Found.`,
+      status: status,
+    })
   }
   if (status === 409) {
-    return c.json({ success: 0, message: `${message} Already exists.` })
+    return c.json({
+      success: 0,
+      message: `${message} Already exists.`,
+      status: status,
+    })
   }
   if (status === 422) {
     return c.json({
       success: 0,
       message: `${message} formats are not correct.`,
+      status: status,
     })
   }
   if (status === 500) {
-    return c.json({ success: 0, message: `Server Error.${message} ` })
+    return c.json({
+      success: 0,
+      message: `Server Error.${message} `,
+      status: status,
+    })
   }
   throw new Error(
     "status is not 200 | 201 | 202 | 204 | 400 | 401 | 403 | 404 | 405 | 415 | 500"
@@ -282,4 +303,37 @@ export const permissionsFilter = (
   // 现在 data 数组中的每个对象应该都有了正确的 children 字段
   console.log(permissions)
   return result
+}
+/**
+ *
+ * @param num 要转换为数字的值
+ * @returns 返回数字或false
+ */
+export const toNumber = (num: string) => {
+  const t = parseInt(num)
+  if (isNaN(t)) {
+    return false
+  }
+  return t
+}
+/**
+ *
+ * @param data 要加密的字符串
+ * @returns 加密后的数据
+ */
+export const cryptoPassword = async (data: string): Promise<string> => {
+  const dataArray = new TextEncoder().encode(data)
+
+  try {
+    const hashBuffer = await crypto.subtle.digest("SHA-256", dataArray)
+    const hashArray = Array.from(new Uint8Array(hashBuffer))
+    const hashedData = hashArray
+      .map((byte) => byte.toString(16).padStart(2, "0"))
+      .join("")
+
+    return hashedData
+  } catch (error) {
+    console.error("加密出错:", error)
+    throw error
+  }
 }
