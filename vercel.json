@@ -2,7 +2,9 @@
   "version": 2,
   "regions": ["sin1"],
   "functions": {
-    "memory": 1024
+    "src/router/images/images.ts": {
+      "memory": 1024
+    }
   },
   "builds": [{ "src": "index.ts", "use": "@vercel/node" }],
 
