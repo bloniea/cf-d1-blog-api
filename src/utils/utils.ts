@@ -1,8 +1,9 @@
 import { Context } from "hono"
 import { sha256 } from "hono/utils/crypto"
 import { CombinedResponse } from "./types.js"
-import crypto from "crypto"
 import fs from "fs"
+import { kv } from "@vercel/kv"
+import { del } from "@vercel/blob"
 /**
  * 获取为空的属性
  * @returns 返回数组包含为空的属性名
@@ -142,7 +143,7 @@ export const getUpdateedData = async (str: {
     sqlAnd: Array<string> = [],
     sqlOr: Array<string> = []
   let i = 1
-  console.log(str)
+
   for (const item in str) {
     if (str[item]) {
       fields.push(`${item} = $${i}`)
@@ -310,7 +311,7 @@ export const permissionsFilter = (
   })
 
   // 现在 data 数组中的每个对象应该都有了正确的 children 字段
-  console.log(permissions)
+
   return result
 }
 /**
@@ -330,21 +331,24 @@ export const toNumber = (num: string) => {
  * @param data 要加密的字符串
  * @returns 加密后的数据
  */
-export const cryptoPassword = async (data: string): Promise<string> => {
-  const dataArray = new TextEncoder().encode(data)
+export const cryptoPassword = async (
+  data: string | Buffer | Uint8Array
+): Promise<string | null> => {
+  // const dataArray = new TextEncoder().encode(data)
 
-  try {
-    const hashBuffer = await crypto.subtle.digest("SHA-256", dataArray)
-    const hashArray = Array.from(new Uint8Array(hashBuffer))
-    const hashedData = hashArray
-      .map((byte) => byte.toString(16).padStart(2, "0"))
-      .join("")
+  // try {
+  //   const hashBuffer = await crypto.subtle.digest("SHA-256", dataArray)
+  //   const hashArray = Array.from(new Uint8Array(hashBuffer))
+  //   const hashedData = hashArray
+  //     .map((byte) => byte.toString(16).padStart(2, "0"))
+  //     .join("")
 
-    return hashedData
-  } catch (error) {
-    console.error("加密出错:", error)
-    throw error
-  }
+  //   return hashedData
+  // } catch (error) {
+  //   console.error("加密出错:", error)
+  //   throw error
+  // }
+  return sha256(data)
 }
 
 export const convertToObjectBuffer = async (
@@ -394,4 +398,26 @@ export const getName = (name: string) => {
   const random = Math.floor(Math.random() * 1000)
   const fileName = nName + "_" + time + "_" + random
   return encodeURIComponent(fileName)
+}
+/**
+ *  截取字符串 指定字符 之前的部分
+ * @param str 字符串
+ * @param s 指定字符
+ * @return 返回截取后的字符
+ */
+export const getStr = (str: string, s: string): string => {
+  const index = str.indexOf(s) // 查找第一个 '_' 的位置
+  const result = str.substring(0, index) // 截取从字符串开始到 '_' 之前的部分
+  if (result) {
+    return result
+  } else {
+    return ""
+  }
+}
+export const delVercelBlob = async (urls: string[]): Promise<void> => {
+  let item: string
+  for (item of urls) {
+    const image: string | null = await kv.get(item)
+    if (image) await del(image)
+  }
 }

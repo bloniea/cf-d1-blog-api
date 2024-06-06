@@ -41,7 +41,7 @@ export const getRoles = async (c: Context) => {
 
 export const getRole = async (c: Context) => {
   const { role_id } = c.req.param()
-  console.log(role_id)
+
   if (!isNumber(role_id))
     return errorStatusMessage(c, 422, "role_id is not a valid number")
 

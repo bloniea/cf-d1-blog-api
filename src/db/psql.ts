@@ -33,7 +33,7 @@ process.on("SIGINT", () => {
   pool
     .end()
     .then(() => {
-      console.log("Pool has been closed")
+      console.info("Pool has been closed")
       process.exit(0)
     })
     .catch((err) => {

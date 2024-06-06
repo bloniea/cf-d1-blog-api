@@ -9,9 +9,17 @@ interface BfetchType {
   fetchOpts: FetchOpts
   create: (url: string, opts: FetchOpts) => Promise<Response>
   get: (url: string) => Promise<Response>
-  post: (url: string, data: { [key: string]: any }, opts: FetchOpts) => Promise<Response>
+  post: (
+    url: string,
+    data: { [key: string]: any },
+    opts: FetchOpts
+  ) => Promise<Response>
   delete: (url: string) => Promise<Response>
-  put: (url: string, data: { [key: string]: any }, opts: FetchOpts) => Promise<Response>
+  put: (
+    url: string,
+    data: { [key: string]: any },
+    opts: FetchOpts
+  ) => Promise<Response>
 }
 /**
  * 对fetch的封装
@@ -42,18 +50,22 @@ class Bfetch implements BfetchType {
    * @param count 重试次数,不需要写
    * @returns 返回跟fetch一样的响应
    */
-  async create(url: string, opts: FetchOpts = {}, count: number = 0): Promise<Response> {
+  async create(
+    url: string,
+    opts: FetchOpts = {},
+    count: number = 0
+  ): Promise<Response> {
     // 判断url参数类型是否正确
-    if (typeof url !== 'string' || !url.trim()) {
-      throw new Error('Invalid URL')
+    if (typeof url !== "string" || !url.trim()) {
+      throw new Error("Invalid URL")
     }
     // 判断opts参数类型是否正确
-    if (typeof opts !== 'object') {
-      throw new Error('Invalid options')
+    if (typeof opts !== "object") {
+      throw new Error("Invalid options")
     }
     // 没有传递method则为get请求
     const methods = {
-      method: !opts?.method ? 'GET' : opts.method
+      method: !opts?.method ? "GET" : opts.method,
     }
     // 获取超时时间
     const timeouted = opts.timeout ? opts.timeout : this.timeout
@@ -78,33 +90,33 @@ class Bfetch implements BfetchType {
     // const fetchOptsHeaders = this.deletePropertyAndReturn(this.fetchOpts, 'headers')
     // const obtHeaders = this.deletePropertyAndReturn(opts, 'headers')
     // const { [excludedProperty]: excludedValue, ...newObject } = originalObject;
-    const { ['headers']: fetchOptsHeaders, ...fetchOptsExcludedHeaders } = this.fetchOpts
-    const { ['headers']: obtHeaders, ...OptsExcludedHeaders } = updatedOpts
+    const { ["headers"]: fetchOptsHeaders, ...fetchOptsExcludedHeaders } =
+      this.fetchOpts
+    const { ["headers"]: obtHeaders, ...OptsExcludedHeaders } = updatedOpts
 
     // const fetchOptsHeaders = this.fetchOpts.headers
     // const obtHeaders = opts.headers
     const options = {
       headers: {
         ...fetchOptsHeaders,
-        ...obtHeaders
+        ...obtHeaders,
       },
       // ...this.fetchOpts,
       ...fetchOptsExcludedHeaders,
       // ...updatedOpts,
       ...OptsExcludedHeaders,
       ...methods,
-      signal: signal
+      signal: signal,
     }
     try {
       const res = await fetch(url, options)
       if (timeoutId !== null) clearTimeout(timeoutId)
       return res
     } catch (err: any) {
-      if (err && err.name === 'AbortError') {
+      if (err && err.name === "AbortError") {
         count++
-        console.log(count, this.retry)
         if (count >= this.retry) {
-          throw new TimeoutError('Request timeout')
+          throw new TimeoutError("Request timeout")
         } else {
           return await this.create(url, opts, count)
         }
@@ -128,12 +140,16 @@ class Bfetch implements BfetchType {
    * @param opts 请求参数
    * @returns 返回跟fetch一样的响应
    */
-  async post(url: string, data: { [key: string]: any }, opts: FetchOpts = {}): Promise<Response> {
+  async post(
+    url: string,
+    data: { [key: string]: any },
+    opts: FetchOpts = {}
+  ): Promise<Response> {
     // opts.headers['Content-Type']=''
     return await this.create(url, {
-      method: 'POST',
+      method: "POST",
       body: data instanceof FormData ? data : JSON.stringify(data),
-      ...opts
+      ...opts,
     })
   }
   /**
@@ -142,7 +158,7 @@ class Bfetch implements BfetchType {
    * @returns 返回跟fetch一样的响应
    */
   async delete(url: string): Promise<Response> {
-    return await this.create(url, { method: 'DELETE' })
+    return await this.create(url, { method: "DELETE" })
   }
   /**
    * put 请求
@@ -151,14 +167,21 @@ class Bfetch implements BfetchType {
    * @param opts 请求参数
    * @returns 返回跟fetch一样的响应
    */
-  async put(url: string, data: { [key: string]: any }, opts: FetchOpts = {}): Promise<Response> {
+  async put(
+    url: string,
+    data: { [key: string]: any },
+    opts: FetchOpts = {}
+  ): Promise<Response> {
     return await this.create(url, {
       ...opts,
-      method: 'PUT',
-      body: JSON.stringify(data)
+      method: "PUT",
+      body: JSON.stringify(data),
     })
   }
-  private deletePropertyAndReturn = <T, K extends keyof T>(obj: T, prop: K): T[K] | undefined => {
+  private deletePropertyAndReturn = <T, K extends keyof T>(
+    obj: T,
+    prop: K
+  ): T[K] | undefined => {
     if (Object.prototype.hasOwnProperty.call(obj, prop)) {
       const value = obj[prop] // 获取属性值
       delete obj[prop] // 删除属性
@@ -172,7 +195,7 @@ class Bfetch implements BfetchType {
 class TimeoutError extends Error {
   constructor(message?: string) {
     super(message)
-    this.name = 'TimeoutError'
+    this.name = "TimeoutError"
   }
 }
 

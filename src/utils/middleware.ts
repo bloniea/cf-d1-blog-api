@@ -61,7 +61,7 @@ export const Authorization: MiddlewareHandler = async (
     )
 
     if (isSuperAdmin && isSuperAdmin.rowCount) {
-      console.log("超级用户")
+      // console.log("超级用户")
       return await next()
     }
     // 查找当前访问所需权限的id

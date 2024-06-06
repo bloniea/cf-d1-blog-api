@@ -62,7 +62,7 @@ export const addArticle = async (c: Context) => {
   try {
     ;({ title, category_id, content, img_url, img_source } = await c.req.json())
   } catch (err) {
-    console.log((err as Error).message)
+    console.error((err as Error).message)
     return errorStatusMessage(c, 415)
   }
   try {
@@ -155,7 +155,7 @@ export const updateArticle = async (c: Context) => {
     // 获取请求的数据
     ;({ title, category_id, content, img_url, img_source } = await c.req.json())
   } catch (err) {
-    console.log((err as Error).message)
+    console.error((err as Error).message)
     return errorStatusMessage(c, 415)
   }
   try {

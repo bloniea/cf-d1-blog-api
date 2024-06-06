@@ -2,8 +2,10 @@ import { Context } from "hono"
 import {
   convertToObjectBuffer,
   cryptoPassword,
+  delVercelBlob,
   errorStatusMessage,
   getName,
+  getStr,
   toNumber,
   valuesEmpty,
 } from "../../utils/utils.js"
@@ -13,8 +15,14 @@ import { CombinedResponse } from "../../utils/types.js"
 import { setToken, verify } from "../../utils/jwt.js"
 import fs from "fs"
 import sharp from "sharp"
-import { deleteImageApi, uploadImageApi } from "../../utils/usefetch.js"
+import {
+  deleteImageApi,
+  getImageToBlob,
+  uploadImageApi,
+} from "../../utils/usefetch.js"
 import { StatusCode } from "hono/utils/http-status"
+import { put, del } from "@vercel/blob"
+import { kv } from "@vercel/kv"
 
 export const getImages = async (c: Context): Promise<CombinedResponse> => {
   try {
@@ -292,14 +300,20 @@ export const uploadImage = async (c: Context): Promise<CombinedResponse> => {
   if (!(content instanceof Blob)) {
     return errorStatusMessage(c, 400, "content 格式错误")
   }
-
+  // const buffer = Buffer.from(await content.arrayBuffer())
+  const blob = await put(`${getName(name)}.${type}`, content, {
+    access: "public",
+  })
+  if (!blob) {
+    throw new Error("upload to vercel blob fail.")
+  }
+  await kv.set(`${hashId}_${number}`, blob.url, { ex: 300 })
+  // const blobDetails = await head(
+  //   "https://baqvatvrkpopyprv.public.blob.vercel-storage.com/20220618014132.jpg-N0DVXyE5NTsVOUJqWTtp23350JQMeH.jpg"
+  // )
+  let urls: string[] = []
   try {
-    const buffer = Buffer.from(await content.arrayBuffer())
-    if (!bufferData[hashId]) {
-      bufferData[hashId] = []
-    }
-    bufferData[hashId][number - 1] = buffer
-    if (Number(length) !== bufferData[hashId].length) {
+    if (number !== length) {
       c.status(202)
       return c.json({
         success: 1,
@@ -307,10 +321,50 @@ export const uploadImage = async (c: Context): Promise<CombinedResponse> => {
         status: 202,
       })
     }
-    // 合并buffer分段数据
-    console.log(bufferData[hashId][0])
-    const data = Buffer.concat(bufferData[hashId])
-    //   // 生成缩略图
+    urls = await kv.keys(`${hashId}*`)
+
+    if (!(Array.isArray(urls) && urls.length)) {
+      throw new Error("request redis Timout.")
+    }
+    const bufferArrs: Buffer[] = []
+    let item: string
+    for (item of urls) {
+      const image: string | null = await kv.get(item)
+      if (!image) throw new Error("request redis  Timout.")
+      const imageBlob: Blob = await getImageToBlob(image)
+      if (imageBlob && imageBlob instanceof Blob) {
+        const buf = Buffer.from(await imageBlob.arrayBuffer())
+        bufferArrs.push(buf)
+        await del(image)
+      } else {
+        throw new Error("request images to blob error.")
+      }
+    }
+    const data =
+      bufferArrs.length > 1 ? Buffer.concat(bufferArrs) : bufferArrs[0]
+    const hashBuffer = await cryptoPassword(new Uint8Array(data))
+    const hashIdEd = getStr(hashId, "_")
+    if (hashIdEd !== hashBuffer) {
+      throw new Error("Incomplete resource.")
+    }
+
+    //   const buffer = Buffer.from(await content.arrayBuffer())
+    //   if (!bufferData[hashId]) {
+    //     bufferData[hashId] = []
+    //   }
+    //   bufferData[hashId][number - 1] = buffer
+    //   if (Number(length) !== bufferData[hashId].length) {
+    //     c.status(202)
+    //     return c.json({
+    //       success: 1,
+    //       message: "正在等待上传...",
+    //       status: 202,
+    //     })
+    //   }
+    //   // 合并buffer分段数据
+    //   console.log(bufferData[hashId][0])
+    //   const data = Buffer.concat(bufferData[hashId])
+    //   //   // 生成缩略图
     const thumbnail = await sharp(data)
       .resize(500)
       .jpeg({ mozjpeg: true })
@@ -329,6 +383,7 @@ export const uploadImage = async (c: Context): Promise<CombinedResponse> => {
     const TRD = await uploadImageApi(thumbnailUrl, thumbnailUpload)
     const tDataJson = await TRD.json()
     if (!TRD.ok) {
+      delVercelBlob(urls)
       c.status(TRD.status as StatusCode)
       return c.json({
         success: 0,
@@ -358,6 +413,7 @@ export const uploadImage = async (c: Context): Promise<CombinedResponse> => {
       // 删除缩略图
       deleteImageApi(delTUrl, delObj)
       c.status(originalR.status as StatusCode)
+      delVercelBlob(urls)
       return c.json({
         success: 0,
         message: "upload image faild",
@@ -399,8 +455,10 @@ export const uploadImage = async (c: Context): Promise<CombinedResponse> => {
       deleteImageApi(delTUrl, delTObj)
       //     // 删除原图
       deleteImageApi(delUrl, delObj)
+      delVercelBlob(urls)
       return errorStatusMessage(c, 408, "请求超时")
     }
+
     c.status(201)
     return c.json({
       success: 1,
@@ -412,13 +470,12 @@ export const uploadImage = async (c: Context): Promise<CombinedResponse> => {
     })
   } catch (e) {
     console.error(e)
+    delVercelBlob(urls)
     return errorStatusMessage(
       c,
       500,
       e instanceof Error ? e.message : String(e)
     )
-  } finally {
-    delete bufferData[hashId]
   }
 }
 export const deleteImage = async (c: Context): Promise<CombinedResponse> => {

@@ -9,4 +9,4 @@ serve({
   fetch: app.fetch,
   port,
 })
-console.log(`Server is running on http://localhost:${port}`)
+console.info(`Server is running on http://localhost:${port}`)

@@ -51,3 +51,7 @@ export const deleteImageApi = async (
 //   const res = await fetchApi(`${api}/repos/${url}`)
 //   return res
 // }
+export const getImageToBlob = async (url: string): Promise<Blob> => {
+  const res = await httpReq.get(url)
+  return await res.blob()
+}

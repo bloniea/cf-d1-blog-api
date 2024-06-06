@@ -123,7 +123,7 @@ export const updateUser = async (c: Context) => {
   try {
     ;({ username, email, role_id, password } = await c.req.json())
   } catch (error) {
-    console.log(error)
+    console.error(error)
     return errorStatusMessage(c, 415)
   }
   try {
@@ -143,7 +143,6 @@ export const updateUser = async (c: Context) => {
       password,
       role_id,
     })
-    console.log(updateedData)
     // 数据检测
     const validation = await verifyUserEmailPassword(updateedData.values)
     if (validation !== null) return errorStatusMessage(c, 422, validation)
@@ -157,11 +156,7 @@ export const updateUser = async (c: Context) => {
       return errorStatusMessage(c, 409, "User or email ")
     }
     // 修改
-    console.log(
-      `UPDATE ${users} SET ${updateedData.fields},updated_at=$${
-        updateedData.fields.length + 1
-      } WHERE user_id = $${updateedData.fields.length + 2}`
-    )
+
     const update = await pool.query(
       `UPDATE ${users} SET ${updateedData.fields},updated_at=$${
         updateedData.fields.length + 1
