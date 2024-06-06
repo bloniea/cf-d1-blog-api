@@ -1,5 +1,5 @@
 import "dotenv/config"
-import { httpReq } from "./fetch"
+import { httpReq } from "./fetch.js"
 const github = "https://github.bloniea.com"
 const api = "https://api.github.com"
 const ghpToken = process.env.GHTOKEN
