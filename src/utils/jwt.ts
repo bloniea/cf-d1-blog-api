@@ -19,4 +19,5 @@ export const verify = async (
 ): Promise<verifyData> => {
   return await Jwt.verify(token, secret, "HS256")
 }
+
 export const decode = Jwt.decode
