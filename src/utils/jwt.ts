@@ -12,6 +12,7 @@ interface verifyData {
   exp?: number
   payload: any
 }
+
 export const verify = async (
   token: string,
   secret: string
