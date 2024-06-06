@@ -34,6 +34,7 @@ import { getPermissions } from "./permissions.js"
 import { getInfos } from "./info.js"
 import { resetPwd } from "./resetPwd.js"
 import {
+  deleteImage,
   getImages,
   getImagesCategories,
   login as imageLogin,
@@ -111,4 +112,5 @@ imagesApi
   .post("/reset", reset)
   .post("/refresh", refresh)
   .post("/upload", uploadImage)
+  .delete("/delete/:id", deleteImage)
 export default app

@@ -1,13 +1,20 @@
 import { Context } from "hono"
 import {
+  convertToObjectBuffer,
   cryptoPassword,
   errorStatusMessage,
+  getName,
   toNumber,
+  valuesEmpty,
 } from "../../utils/utils.js"
 import { image_users, images, images_category, pool } from "../../db/psql.js"
 import { QueryResult } from "pg"
 import { CombinedResponse } from "../../utils/types.js"
 import { setToken, verify } from "../../utils/jwt.js"
+import fs from "fs"
+import sharp from "sharp"
+import { deleteImageApi, uploadImageApi } from "../../utils/usefetch.js"
+import { StatusCode } from "hono/utils/http-status"
 
 export const getImages = async (c: Context): Promise<CombinedResponse> => {
   try {
@@ -245,12 +252,226 @@ export const reset = async (c: Context): Promise<CombinedResponse> => {
     status: 200,
   })
 }
+
+const bufferData: { [key: string]: Buffer[] } = {}
 export const uploadImage = async (c: Context): Promise<CombinedResponse> => {
-  return c.json({
-    success: 1,
-    message: "上传成功",
-    status: 200,
+  const body = await c.req.formData()
+  const owner = body.get("owner") as string,
+    repo = body.get("repo") as string,
+    path = body.get("path") as string,
+    thumbnailPath = body.get("thumbnailPath") as string,
+    message = body.get("message") as string,
+    content = body.get("content"),
+    category_name = body.get("category_name") as string,
+    category_id = body.get("category_id") as unknown as number,
+    name = body.get("name") as string,
+    type = body.get("type") as string,
+    number = body.get("number") as unknown as number,
+    hashId = body.get("hashId") as string,
+    length = body.get("length") as unknown as number
+
+  const empty = valuesEmpty({
+    type,
+    number,
+    hashId,
+    owner,
+    repo,
+    path,
+    thumbnailPath,
+    message,
+    content,
+    category_name,
+    category_id,
+    name,
+    length,
   })
+
+  if (empty.length) {
+    return errorStatusMessage(c, 400, "缺少必须参数:" + empty.join(","))
+  }
+  if (!(content instanceof Blob)) {
+    return errorStatusMessage(c, 400, "content 格式错误")
+  }
+
+  try {
+    const buffer = Buffer.from(await content.arrayBuffer())
+    if (!bufferData[hashId]) {
+      bufferData[hashId] = []
+    }
+    bufferData[hashId][number - 1] = buffer
+    if (Number(length) !== bufferData[hashId].length) {
+      c.status(202)
+      return c.json({
+        success: 1,
+        message: "正在等待上传...",
+        status: 202,
+      })
+    }
+    // 合并buffer分段数据
+    console.log(bufferData[hashId][0])
+    const data = Buffer.concat(bufferData[hashId])
+    //   // 生成缩略图
+    const thumbnail = await sharp(data)
+      .resize(500)
+      .jpeg({ mozjpeg: true })
+      .toBuffer()
+
+    //   // 缩略图请求参数
+    const thumbnailUpload = {
+      message: message,
+      content: thumbnail.toString("base64"),
+    }
+    const imgName = getName(name)
+
+    const thumbnailUrl = `/repos/${owner}/${repo}/contents/${thumbnailPath}/${category_name}/${imgName}.jpeg`
+
+    //   // 上传缩略图
+    const TRD = await uploadImageApi(thumbnailUrl, thumbnailUpload)
+    const tDataJson = await TRD.json()
+    if (!TRD.ok) {
+      c.status(TRD.status as StatusCode)
+      return c.json({
+        success: 0,
+        message: "upload thumbnail faild",
+        status: TRD.status,
+        data: {
+          statusText: TRD.statusText,
+        },
+      })
+    }
+
+    //  原图请求数据
+    const originalData = {
+      message: message,
+      content: data.toString("base64"),
+    }
+    //   上传原图
+    const oUrl = `/repos/${owner}/${repo}/contents/${path}/${category_name}/${imgName}.${type}`
+    const originalR = await uploadImageApi(oUrl, originalData)
+    const tType = "jpeg"
+    if (!originalR.ok) {
+      const delTUrl = thumbnailUrl
+      const delObj = {
+        message: "del",
+        sha: tDataJson.content.sha,
+      }
+      // 删除缩略图
+      deleteImageApi(delTUrl, delObj)
+      c.status(originalR.status as StatusCode)
+      return c.json({
+        success: 0,
+        message: "upload image faild",
+        status: originalR.status,
+        data: {
+          statusText: originalR.statusText,
+          status: originalR.status,
+        },
+      })
+    }
+    const oImageD = await originalR.json()
+
+    const insetR = await pool.query(
+      `INSERT  INTO ${images} (name,path,thumbnailPath,sha,thumbnailSha,size,category_id,created_at) VALUES ($1,$2,$3,$4,$5,$6,$7,$8)`,
+      [
+        String(name.split(".")[0]),
+        path + "/" + category_name + "/" + imgName + "." + type,
+        thumbnailPath + "/" + category_name + "/" + imgName + "." + tType,
+        oImageD.content.sha,
+        tDataJson.content.sha,
+        oImageD.content.size,
+        category_id,
+        new Date().getTime(),
+      ]
+    )
+
+    if (!insetR.rowCount) {
+      const delTUrl = thumbnailUrl
+      const delTObj = {
+        message: "del",
+        sha: tDataJson.content.sha,
+      }
+      const delUrl = oUrl
+      const delObj = {
+        message: "del",
+        sha: oImageD.content.sha,
+      }
+      //     // 删除缩略图
+      deleteImageApi(delTUrl, delTObj)
+      //     // 删除原图
+      deleteImageApi(delUrl, delObj)
+      return errorStatusMessage(c, 408, "请求超时")
+    }
+    c.status(201)
+    return c.json({
+      success: 1,
+      message: "upload image success",
+      status: 201,
+      data: {
+        img_url: path + "/" + category_name + "/" + imgName + "." + type,
+      },
+    })
+  } catch (e) {
+    console.error(e)
+    return errorStatusMessage(
+      c,
+      500,
+      e instanceof Error ? e.message : String(e)
+    )
+  } finally {
+    delete bufferData[hashId]
+  }
+}
+export const deleteImage = async (c: Context): Promise<CombinedResponse> => {
+  const image_id = c.req.param("id")
+  if (isNaN(Number(image_id))) {
+    errorStatusMessage(c, 400, "参数错误")
+  }
+  const { owner, repo, thumbnailPath, path, thumbnailSha, sha } = c.req.query()
+  const emptyArr = valuesEmpty({
+    owner,
+    repo,
+    thumbnailPath,
+    path,
+    thumbnailSha,
+    sha,
+  })
+  if (emptyArr.length) {
+    return errorStatusMessage(c, 400, "缺少必须参数:" + emptyArr.join(","))
+  }
+
+  try {
+    const delthumbnailUrl = `/repos/${owner}/${repo}/contents/${thumbnailPath}`
+    const delTObj = {
+      message: "del",
+      sha: thumbnailSha,
+    }
+    const delUrl = `/repos/${owner}/${repo}/contents/${path}`
+    const delObj = {
+      message: "del",
+      sha: sha,
+    }
+    // // 删除缩略图
+    await deleteImageApi(delthumbnailUrl, delTObj)
+    // // 删除原图
+    await deleteImageApi(delUrl, delObj)
+    const del = await pool.query(`DELETE FROM ${images} WHERE image_id = $1 `, [
+      image_id,
+    ])
+
+    if (del.rowCount) {
+      c.status(200)
+      return c.json({ success: 1, message: "删除成功", status: 200 })
+    } else {
+      return errorStatusMessage(c, 404, "image_id ")
+    }
+  } catch (e) {
+    console.error(e)
+    return errorStatusMessage(
+      c,
+      500,
+      e instanceof Error ? e.message : String(e)
+    )
+  }
 }
 function setResponseStatus(event: Event | undefined, arg1: number) {
   throw new Error("Function not implemented.")

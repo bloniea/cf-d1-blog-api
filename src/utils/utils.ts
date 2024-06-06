@@ -2,6 +2,7 @@ import { Context } from "hono"
 import { sha256 } from "hono/utils/crypto"
 import { CombinedResponse } from "./types.js"
 import crypto from "crypto"
+import fs from "fs"
 /**
  * 获取为空的属性
  * @returns 返回数组包含为空的属性名
@@ -31,6 +32,7 @@ type StatusCode =
   | 422
   | 500
   | 409
+  | 408
 /**
  * 返回错误状态码和信息
  * @param c hono的上下文
@@ -71,6 +73,13 @@ export const errorStatusMessage = async (
     return c.json({
       success: 0,
       message: `${message} Not Found.`,
+      status: status,
+    })
+  }
+  if (status === 408) {
+    return c.json({
+      success: 0,
+      message: `${message}`,
       status: status,
     })
   }
@@ -336,4 +345,53 @@ export const cryptoPassword = async (data: string): Promise<string> => {
     console.error("加密出错:", error)
     throw error
   }
+}
+
+export const convertToObjectBuffer = async (
+  binaryObject: any
+): Promise<Buffer> => {
+  return new Promise((resolve, reject) => {
+    const reader = fs.createReadStream(binaryObject.path) // 假设 file 是一个包含文件路径的 File 对象
+    const chunks: Buffer[] = []
+
+    reader.on("data", (chunk: Buffer) => {
+      chunks.push(chunk)
+    })
+
+    reader.on("end", () => {
+      const buffer = Buffer.concat(chunks)
+      resolve(buffer)
+    })
+
+    reader.on("error", (error: Error) => {
+      reject(error)
+    })
+  })
+
+  // if (typeof binaryObject === "object" && binaryObject instanceof Blob) {
+  //   // 创建一个Promise来封装读取Blob的操作
+  //   const binaryData = await new Promise<ArrayBuffer>((resolve, reject) => {
+  //     const reader = new FileReader()
+  //     reader.onload = (event) =>
+  //       resolve((event.target as FileReader).result as ArrayBuffer)
+  //     reader.onerror = (error) => reject(error)
+  //     reader.readAsArrayBuffer(binaryObject)
+  //   })
+
+  //   // 将二进制数据转换为Buffer
+  //   const uint8Array = new Uint8Array(binaryData)
+  //   const buffer = Buffer.from(uint8Array)
+  //   return buffer
+  // } else {
+  //   throw new Error("Invalid object type or instance")
+  // }
+}
+// 获取文件名
+export const getName = (name: string) => {
+  const index = name.lastIndexOf(".")
+  const nName = index > -1 ? name.substring(0, index) : name
+  const time = new Date().getTime()
+  const random = Math.floor(Math.random() * 1000)
+  const fileName = nName + "_" + time + "_" + random
+  return encodeURIComponent(fileName)
 }
