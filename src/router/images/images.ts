@@ -522,34 +522,34 @@ export const deleteImage = async (c: Context): Promise<CombinedResponse> => {
   if (isNaN(Number(image_id))) {
     errorStatusMessage(c, 400, "参数错误")
   }
-  const { owner, repo, thumbnailPath, path, thumbnailSha, sha } = c.req.query()
-  const emptyArr = valuesEmpty({
-    owner,
-    repo,
-    thumbnailPath,
-    path,
-    thumbnailSha,
-    sha,
-  })
-  if (emptyArr.length) {
-    return errorStatusMessage(c, 400, "缺少必须参数:" + emptyArr.join(","))
-  }
+  // const { owner, repo, thumbnailPath, path, thumbnailSha, sha } = c.req.query()
+  // const emptyArr = valuesEmpty({
+  //   owner,
+  //   repo,
+  //   thumbnailPath,
+  //   path,
+  //   thumbnailSha,
+  //   sha,
+  // })
+  // if (emptyArr.length) {
+  //   return errorStatusMessage(c, 400, "缺少必须参数:" + emptyArr.join(","))
+  // }
 
   try {
-    const delthumbnailUrl = `/repos/${owner}/${repo}/contents/${thumbnailPath}`
-    const delTObj = {
-      message: "del",
-      sha: thumbnailSha,
-    }
-    const delUrl = `/repos/${owner}/${repo}/contents/${path}`
-    const delObj = {
-      message: "del",
-      sha: sha,
-    }
-    // // 删除缩略图
-    await deleteImageApi(delthumbnailUrl, delTObj)
-    // // 删除原图
-    await deleteImageApi(delUrl, delObj)
+    // const delthumbnailUrl = `/repos/${owner}/${repo}/contents/${thumbnailPath}`
+    // const delTObj = {
+    //   message: "del",
+    //   sha: thumbnailSha,
+    // }
+    // const delUrl = `/repos/${owner}/${repo}/contents/${path}`
+    // const delObj = {
+    //   message: "del",
+    //   sha: sha,
+    // }
+    // // // 删除缩略图
+    // await deleteImageApi(delthumbnailUrl, delTObj)
+    // // // 删除原图
+    // await deleteImageApi(delUrl, delObj)
     const del = await pool.query(`DELETE FROM ${images} WHERE image_id = $1 `, [
       image_id,
     ])
